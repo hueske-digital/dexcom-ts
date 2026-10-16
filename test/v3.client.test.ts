@@ -490,8 +490,62 @@ describe("v3 client", () => {
       const latest = await createDexcomV3(options()).getLatestReading();
       assert.equal(latest?.mgdl, 140);
       const url = new URL(requests[1]?.url ?? "");
-      assert.equal(url.searchParams.get("startDate"), "2026-10-16T08:45:00");
+      assert.equal(url.searchParams.get("startDate"), "2026-10-16T08:00:01");
       assert.equal(url.searchParams.get("endDate"), "2026-10-16T09:00:01");
+    });
+
+    it("searches further back when the data range ends after the last EGV", async (t) => {
+      // Seen in the sandbox: dataRange reports an end hours after the newest record.
+      const requests = stubFetch(
+        t,
+        dataRange(["2026-01-01T00:00:00", "2026-10-16T09:00:00.979"]),
+        page([]),
+        page([egv("x", "2026-10-16T04:00:00", 99)]),
+      );
+      const latest = await createDexcomV3(options()).getLatestReading();
+      assert.equal(latest?.mgdl, 99);
+      const windows = requests.slice(1).map((r) => {
+        const url = new URL(r.url);
+        return [url.searchParams.get("startDate"), url.searchParams.get("endDate")];
+      });
+      // End 09:00:00.979 plus one second; the API gets the enclosing whole seconds.
+      assert.deepEqual(windows, [
+        ["2026-10-16T08:00:01", "2026-10-16T09:00:02"],
+        ["2026-10-15T08:00:01", "2026-10-16T08:00:02"],
+      ]);
+    });
+
+    it("walks back 1 h, 24 h, then 30 days at a time to the start of the range", async (t) => {
+      const requests = stubFetch(t, dataRange(["2026-08-01T00:00:00", "2026-10-16T00:00:00"]), page([]), page([]), page([]), page([]), page([]));
+      assert.equal(await createDexcomV3(options()).getLatestReading(), null);
+      const windows = requests.slice(1).map((r) => {
+        const url = new URL(r.url);
+        return [url.searchParams.get("startDate"), url.searchParams.get("endDate")];
+      });
+      assert.deepEqual(windows, [
+        ["2026-10-15T23:00:01", "2026-10-16T00:00:01"],
+        ["2026-10-14T23:00:01", "2026-10-15T23:00:01"],
+        ["2026-09-14T23:00:01", "2026-10-14T23:00:01"],
+        ["2026-08-15T23:00:01", "2026-09-14T23:00:01"],
+        ["2026-08-01T00:00:00", "2026-08-15T23:00:01"],
+      ]);
+    });
+
+    it("stops at the start of the data range when there is no EGV at all", async (t) => {
+      const requests = stubFetch(t, dataRange(["2026-10-15T00:00:00", "2026-10-16T00:00:00"]), page([]), page([]));
+      assert.equal(await createDexcomV3(options()).getLatestReading(), null);
+      assert.equal(new URL(requests.at(-1)?.url ?? "").searchParams.get("startDate"), "2026-10-15T00:00:00");
+      assert.equal(requests.length, 3);
+    });
+
+    it("accepts timestamps with minute precision", async (t) => {
+      // Seen in the sandbox: "2026-05-23T06:45Z" next to the usual second precision.
+      stubFetch(t, page([{ ...egv("m", "2026-05-23T06:45"), systemTime: "2026-05-23T06:45Z", displayTime: "2026-05-23T01:45-05:00" }]));
+      const readings = await createDexcomV3(options()).getReadings({
+        from: new Date("2026-05-23T06:00:00Z"),
+        to: new Date("2026-05-23T07:00:00Z"),
+      });
+      assert.deepEqual(readings.map((r) => r.time.toISOString()), ["2026-05-23T06:45:00.000Z"]);
     });
 
     it("returns null as latest reading without data", async (t) => {

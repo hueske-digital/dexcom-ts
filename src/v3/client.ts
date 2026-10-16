@@ -36,6 +36,8 @@ export type V3Region = keyof typeof V3_BASE_URLS;
 /** The API rejects windows longer than 30 days with 400. */
 export const MAX_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const DEFAULT_TIMEOUT_MS = 30_000;
+/** Windows getLatestReading searches backwards from the end of the EGV range, then 30 days each. */
+const LATEST_FIRST_WINDOWS_MS = [60 * 60 * 1000, 24 * 60 * 60 * 1000] as const;
 const TOKEN_REFRESH_MARGIN_MS = 60_000;
 /** Data from the mobile apps arrives with this delay: 1 h in the US, 3 h elsewhere (Dexcom FAQ). */
 const DELAY_MS = { sandbox: 0, us: 60 * 60 * 1000, ous: 3 * 60 * 60 * 1000, jp: 3 * 60 * 60 * 1000 } as const;
@@ -333,10 +335,19 @@ export function createDexcomV3(options: DexcomV3Options): DexcomV3 {
     async getLatestReading() {
       const { egvs } = await client.dataRange();
       if (!egvs) return null;
-      // endDate is exclusive: reach one second past the newest record so it is included.
-      const to = new Date(egvs.to.getTime() + 1000);
-      const readings = await client.getReadings({ from: new Date(egvs.to.getTime() - 15 * 60 * 1000), to });
-      return readings.at(-1) ?? null;
+      // The range end can lie after the last EGV (seen in the sandbox), so search backwards in
+      // growing, non-overlapping windows: 1 h, 24 h, then 30 days at a time down to the first EGV.
+      // endDate is exclusive: start one second past the range end so a record there is included.
+      let to = new Date(egvs.to.getTime() + 1000);
+      for (let index = 0; to > egvs.from; index += 1) {
+        const span = LATEST_FIRST_WINDOWS_MS[index] ?? MAX_WINDOW_MS;
+        const from = new Date(Math.max(egvs.from.getTime(), to.getTime() - span));
+        // oxlint-disable-next-line no-await-in-loop -- each window depends on the previous one being empty
+        const latest = (await client.getReadings({ from, to })).at(-1);
+        if (latest) return latest;
+        to = from;
+      }
+      return null;
     },
   };
   return client;
