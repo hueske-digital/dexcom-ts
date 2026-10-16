@@ -1,6 +1,6 @@
 {
   "name": "@hueske-digital/dexcom-ts",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "TypeScript client for Dexcom CGM data: the official Dexcom API v3 and the unofficial Dexcom Share service behind one interface",
   "license": "MIT",
   "type": "module",
