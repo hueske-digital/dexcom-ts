@@ -19,8 +19,10 @@ export default defineConfig({
     pluginZod({
       printer: {
         nodes: {
-          // systemTime comes without offset (UTC), displayTime with one: accept both.
-          datetime: () => "z.iso.datetime({ offset: true, local: true })",
+          // systemTime comes without offset (UTC), displayTime with one, and some records carry
+          // minute precision only (e.g. "2026-05-23T06:45Z", seen in the sandbox): accept all of them.
+          datetime: () =>
+            "z.union([z.iso.datetime({ offset: true, local: true }), z.iso.datetime({ offset: true, local: true, precision: -1 })])",
         },
       },
     }),
