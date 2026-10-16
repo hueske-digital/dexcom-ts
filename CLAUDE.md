@@ -34,5 +34,10 @@
 - Every workflow declares `permissions` explicitly (repo default is read-only). release-please needs "Allow GitHub Actions to create and approve pull requests", which the org must allow before the repo setting sticks.
 - pnpm (since 11.5.3) ignores `${...}` placeholders in the project `.npmrc`; registry tokens go into `~/.npmrc` with the placeholder, the token itself via `env:`.
 - If publishing fails after release-please created the tag, rerun with `gh workflow run release.yml -f tag=vX.Y.Z` (a rerun of the old run would use the old workflow file).
-- Real sandbox data broke two spec/doc assumptions: one EGV had minute-precision timestamps ("2026-05-23T06:45Z", not RFC 3339), and dataRange's EGV end lay hours after the last EGV. Schemas accept minute precision; getLatestReading searches backwards. Probe new data sources with the real API before trusting the spec.
-- `recordId` is not unique in real data (sandbox: 16 ids across 1 439 alerts, EGV and calibration ids reused months apart). Consumers must key by `recordId` + `systemTime`; the README says so.
+- Real sandbox data broke spec/doc assumptions. Dexcom support (2026-10-16) sorted them into production behavior and sandbox defects:
+  - Minute-precision timestamps ("2026-05-23T06:45Z", not RFC 3339) are valid ISO 8601 and occur in production. Schemas accept them.
+  - dataRange's EGV end can lie hours after the last EGV, a known production edge case tied to `lastSyncTime`; Dexcom gave no timeline for a fix. getLatestReading searches backwards.
+  - `recordId` reuse (16 ids across 1 439 alerts, EGV and calibration ids repeated months apart) is a sandbox generator defect that Dexcom plans to fix; production ids are unique. Keying by `recordId` + `systemTime` works in both; the README says so.
+  - `/events` returning nothing while dataRange reports events is sandbox-only.
+  - Dexcom will update swaggerV3.json; the spec-drift workflow should pick that up.
+- Probe new data sources with the real API before trusting the spec, and ask Dexcom support whether a finding is production behavior or a sandbox defect.
