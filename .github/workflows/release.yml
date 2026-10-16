@@ -3,16 +3,24 @@ name: Release
 # release-please keeps a release PR up to date from the Conventional Commits on main.
 # Merging it creates the tag and GitHub release; the publish job then runs in this same
 # workflow, because tags created with GITHUB_TOKEN do not trigger other workflows.
+# A manual run publishes an existing release tag again, e.g. after a failed publish.
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish, e.g. v0.1.0
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   release-please:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -32,17 +40,29 @@ jobs:
 
   publish:
     needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
+    # Runs after a release on push, or for a manual run (where release-please is skipped).
+    if: >-
+      ${{ !cancelled() && (
+        (github.event_name == 'push' && needs.release-please.outputs.release_created == 'true') ||
+        github.event_name == 'workflow_dispatch'
+      ) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
       packages: write
+    env:
+      VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || needs.release-please.outputs.version }}
     steps:
-      # Build exactly the commit release-please tagged, not whatever triggered this run.
+      - name: Check the release tag
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ inputs.tag }}
+        run: '[[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]'
+      # Build exactly the released commit, not whatever triggered this run.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.release-please.outputs.sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || needs.release-please.outputs.sha }}
           persist-credentials: false
       - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
         with:
@@ -51,9 +71,7 @@ jobs:
           sha256: 8a223b5f8ca71100220a3e5bef259614c348e7b1d80e6b15c2a9c9aa3affe5e4
       - run: pnpm install --frozen-lockfile
       - name: Check that package.json carries the released version
-        env:
-          VERSION: ${{ needs.release-please.outputs.version }}
-        run: test "$VERSION" = "$(node -p 'require("./package.json").version')"
+        run: test "${VERSION#v}" = "$(node -p 'require("./package.json").version')"
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
@@ -61,6 +79,8 @@ jobs:
       - name: Publish to GitHub Packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # pnpm ignores ${...} in a project .npmrc (GHSA-3qhv-2rgh-x77r) but expands it in the
+        # user-level ~/.npmrc. The line holds the placeholder; the token stays in the environment.
         run: |
-          echo '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' > .npmrc
+          echo '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' >> ~/.npmrc
           pnpm publish --no-git-checks

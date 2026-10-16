@@ -31,3 +31,6 @@
 - Tags and PRs created with `GITHUB_TOKEN` do not trigger other workflows: publishing runs inside the release-please workflow, spec drift reports an issue instead of a PR.
 - Workflows pin mise itself (`version` + `sha256` of the linux-x64 binary) besides the mise-action SHA. When updating mise, verify the archive against the release's SHASUMS256.txt and hash the extracted `mise/bin/mise`.
 - Token operations on one `TokenStorage` run strictly one after another (`exclusive` in `src/v3/client.ts`); per-flag locks were not enough. Race tests use storages that return the state at read time and gates that hold specific reads.
+- Every workflow declares `permissions` explicitly (repo default is read-only). release-please needs "Allow GitHub Actions to create and approve pull requests", which the org must allow before the repo setting sticks.
+- pnpm (since 11.5.3) ignores `${...}` placeholders in the project `.npmrc`; registry tokens go into `~/.npmrc` with the placeholder, the token itself via `env:`.
+- If publishing fails after release-please created the tag, rerun with `gh workflow run release.yml -f tag=vX.Y.Z` (a rerun of the old run would use the old workflow file).
