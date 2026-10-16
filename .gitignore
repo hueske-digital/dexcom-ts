@@ -1,0 +1,10 @@
+node_modules/
+dist/
+src/generated/
+spec/*.json
+!spec/*.sha256
+*.tgz
+.env
+# OAuth tokens written by fileTokenStorage (see README)
+.dexcom-token.json
+.dexcom-token.json.*
