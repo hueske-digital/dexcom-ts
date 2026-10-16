@@ -35,3 +35,4 @@
 - pnpm (since 11.5.3) ignores `${...}` placeholders in the project `.npmrc`; registry tokens go into `~/.npmrc` with the placeholder, the token itself via `env:`.
 - If publishing fails after release-please created the tag, rerun with `gh workflow run release.yml -f tag=vX.Y.Z` (a rerun of the old run would use the old workflow file).
 - Real sandbox data broke two spec/doc assumptions: one EGV had minute-precision timestamps ("2026-05-23T06:45Z", not RFC 3339), and dataRange's EGV end lay hours after the last EGV. Schemas accept minute precision; getLatestReading searches backwards. Probe new data sources with the real API before trusting the spec.
+- `recordId` is not unique in real data (sandbox: 16 ids across 1 439 alerts, EGV and calibration ids reused months apart). Consumers must key by `recordId` + `systemTime`; the README says so.
