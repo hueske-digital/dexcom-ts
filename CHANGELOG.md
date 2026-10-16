@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1](https://github.com/hueske-digital/dexcom-ts/compare/v0.1.0...v0.1.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ci:** publish with the token from ~/.npmrc ([170086f](https://github.com/hueske-digital/dexcom-ts/commit/170086f1deac8e7f3f30a9a8d7727f6f4662c931))
+* **ci:** publish with the token from ~/.npmrc and allow publishing an existing tag ([c5210f5](https://github.com/hueske-digital/dexcom-ts/commit/c5210f5a63645acd7ed4917105f67cd7c62323a9))
+
 ## 0.1.0 (2026-10-16)
 
 
