@@ -1,0 +1,70 @@
+{
+  "name": "@hueske-digital/dexcom-ts",
+  "version": "0.0.0",
+  "description": "TypeScript client for Dexcom CGM data: the official Dexcom API v3 and the unofficial Dexcom Share service behind one interface",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hueske-digital/dexcom-ts.git"
+  },
+  "keywords": [
+    "dexcom",
+    "cgm",
+    "glucose",
+    "diabetes",
+    "dexcom-api",
+    "dexcom-share"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./v3": {
+      "types": "./dist/v3/index.d.ts",
+      "default": "./dist/v3/index.js"
+    },
+    "./share": {
+      "types": "./dist/share/index.d.ts",
+      "default": "./dist/share/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "packageManager": "pnpm@12.10.1",
+  "dependencies": {
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "10.6.0",
+    "@kubb/parser-ts": "5.5.6",
+    "@kubb/plugin-faker": "5.0.13",
+    "@kubb/plugin-fetch": "5.5.6",
+    "@kubb/plugin-ts": "5.0.5",
+    "@kubb/plugin-zod": "5.4.3",
+    "@types/node": "26.6.4",
+    "@typescript/native": "npm:typescript@7.0.2",
+    "kubb": "5.5.6",
+    "oxlint": "1.87.0",
+    "oxlint-tsgolint": "7.0.2003",
+    "typescript": "npm:@typescript/typescript6@6.0.2"
+  },
+  "scripts": {
+    "spec": "node scripts/fetch-spec.ts",
+    "generate": "kubb generate",
+    "prepare": "pnpm spec && pnpm generate",
+    "typecheck": "tsc",
+    "lint": "oxlint --deny-warnings --report-unused-disable-directives",
+    "test": "node --test --test-timeout=20000 'test/**/*.test.ts'",
+    "build": "tsc -p tsconfig.build.json"
+  }
+}

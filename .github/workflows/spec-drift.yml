@@ -1,0 +1,58 @@
+name: Spec drift
+
+# Weekly check whether Dexcom changed the OpenAPI document. The pinned hash keeps builds
+# reproducible; this job reports a change as an issue with the outcome of regenerating and
+# testing against the new document, so a person reviews and pins it.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          # mise itself is pinned too; the sha256 is that of the linux-x64 binary.
+          version: 2026.10.5
+          sha256: 8a223b5f8ca71100220a3e5bef259614c348e7b1d80e6b15c2a9c9aa3affe5e4
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - id: spec
+        run: |
+          pinned="$(cat spec/dexcom-v3.openapi.sha256)"
+          pnpm spec --update
+          current="$(cat spec/dexcom-v3.openapi.sha256)"
+          echo "hash=$current" >> "$GITHUB_OUTPUT"
+          if [ "$pinned" = "$current" ]; then echo "changed=false" >> "$GITHUB_OUTPUT"; else echo "changed=true" >> "$GITHUB_OUTPUT"; fi
+      - id: verify
+        if: steps.spec.outputs.changed == 'true'
+        continue-on-error: true
+        run: pnpm generate && pnpm typecheck && pnpm test
+      - if: steps.spec.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HASH: ${{ steps.spec.outputs.hash }}
+          OUTCOME: ${{ steps.verify.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Dexcom OpenAPI document changed"
+          body="The document at developer.dexcom.com no longer matches the pinned hash.
+
+          New SHA-256: \`${HASH}\`
+          Regenerate, typecheck and test against it: **${OUTCOME}** ([run](${RUN_URL}))
+
+          Run \`pnpm spec --update\`, review the generated diff, adapt code and tests, and commit the new hash."
+          existing="$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number')"
+          if [ -n "$existing" ]; then gh issue comment "$existing" --body "$body"; else gh issue create --title "$title" --body "$body"; fi
