@@ -59,7 +59,7 @@ const events = await dexcom.events({ from: new Date("2026-10-01"), to: new Date(
 const range = await dexcom.dataRange();
 ```
 
-The record methods return the API's records as typed objects. The package carries no field descriptions (see [How it is built](#how-it-is-built)); Dexcom documents the fields in its [endpoint reference](https://developer.dexcom.com/docs/dexcomv3/endpoint-overview/).
+The record methods return the API's records as typed objects. Do not use `recordId` alone as a key: Dexcom documents it as unique, but reuses it in practice (in the sandbox, 1 439 alerts share 16 ids, and single EGV ids repeat months apart). Key stored records by `recordId` and `systemTime`. The package carries no field descriptions (see [How it is built](#how-it-is-built)); Dexcom documents the fields in its [endpoint reference](https://developer.dexcom.com/docs/dexcomv3/endpoint-overview/).
 
 `fileTokenStorage` writes a file with mode 0600; keep it outside any git checkout. For a database or secrets store, implement `TokenStorage` (`load` and `save`); these must not call the Dexcom client themselves.
 
