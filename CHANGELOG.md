@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/hueske-digital/dexcom-ts/compare/v0.1.2...v0.1.3) (2026-10-22)
+
+
+### Bug Fixes
+
+* **deps:** bump Node.js to 26.12.1 for CVE-2026-111497 ([bcc23e8](https://github.com/hueske-digital/dexcom-ts/commit/bcc23e8f8676516629cab3383fc1e8ee208f197f))
+
 ## [0.1.2](https://github.com/hueske-digital/dexcom-ts/compare/v0.1.1...v0.1.2) (2026-10-16)
 
 
